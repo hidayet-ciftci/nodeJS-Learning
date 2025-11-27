@@ -13,8 +13,14 @@ router.get("/profile", verifyToken, async (req, res, next) => {
   }
 });
 
-router.get("/admin", verifyToken, checkRole("admin"), (req, res, next) => {
-  res.json({ message: "welcome admin" });
+router.get("/", verifyToken, checkRole("admin"), async (req, res, next) => {
+  try {
+    // Tüm kullanıcıları bul ama şifrelerini getirme
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = router;
