@@ -1,65 +1,286 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useEffect } from "react";
+
+// --- TİP TANIMLAMALARI ---
+interface User {
+  _id: string;
+  username: string;
+  email: string;
+  role: "user" | "admin";
+}
+
+interface AuthResponse {
+  message?: string;
+  token?: string;
+  error?: string;
+  user?: User;
+}
 
 export default function Home() {
+  // --- STATE ---
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // Form State
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [roleInput, setRoleInput] = useState("user");
+  const [isLoginView, setIsLoginView] = useState(true);
+
+  // Backend Adresi (5000 Portu)
+  const API_URL = "http://localhost:5000";
+
+  // --- SAYFA YÜKLENİNCE ---
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) {
+      setToken(storedToken);
+      fetchProfile(storedToken);
+    }
+  }, []);
+
+  // --- REGISTER ---
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password, role: roleInput }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Kayıt Başarılı! Giriş yapabilirsiniz.");
+        setIsLoginView(true);
+      } else {
+        setError(data.message || "Kayıt hatası");
+      }
+    } catch (err) {
+      setError("Sunucuya bağlanılamadı.");
+    }
+    setLoading(false);
+  };
+
+  // --- LOGIN ---
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data: AuthResponse = await response.json();
+
+      if (response.ok && data.token) {
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+        fetchProfile(data.token);
+      } else {
+        setError(data.message || "Giriş başarısız");
+      }
+    } catch (err) {
+      setError("Sunucuya bağlanılamadı.");
+    }
+    setLoading(false);
+  };
+
+  // --- LOGOUT ---
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setToken("");
+    setUser(null);
+  };
+
+  // --- PROFİL ÇEKME ---
+  const fetchProfile = async (currentToken: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/users/profile`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.user) {
+        setUser(data.user);
+      } else {
+        if (response.status === 401) {
+          handleLogout();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // --- EKRAN 1: GİRİŞ YAPMIŞ KULLANICI ---
+  if (user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="bg-white p-8 rounded shadow-xl w-full max-w-md text-center border border-gray-200">
+          {/* Başlıklar Siyah */}
+          <h1 className="text-3xl font-bold mb-2 text-black">Hoşgeldin!</h1>
+          <h2 className="text-xl font-semibold text-black">{user.username}</h2>
+
+          <div className="mt-6 p-4 bg-gray-50 rounded text-left space-y-2 border border-gray-300">
+            {/* Etiketler ve Değerler Siyah */}
+            <p className="text-black">
+              <span className="font-bold text-black">Email:</span> {user.email}
+            </p>
+            <p className="text-black">
+              <span className="font-bold text-black">ID:</span>{" "}
+              <span className="text-xs">{user._id}</span>
+            </p>
+            <p className="text-black">
+              <span className="font-bold text-black">Rol:</span>
+              <span
+                className={`ml-2 px-2 py-1 rounded text-xs uppercase font-bold ${
+                  user.role === "admin"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-green-100 text-green-800"
+                }`}
+              >
+                {user.role}
+              </span>
+            </p>
+          </div>
+
+          {/* SADECE ADMIN GÖREBİLİR */}
+          {user.role === "admin" && (
+            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded">
+              <h3 className="font-bold text-black">🔒 Yönetici Paneli</h3>
+              <p className="text-sm text-black">
+                Bu alanı sadece Admin rolüne sahip kullanıcılar görebilir.
+              </p>
+              <button className="mt-2 bg-red-600 text-white px-4 py-1 rounded text-sm hover:bg-red-700 font-bold">
+                Kullanıcıları Yönet
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={handleLogout}
+            className="mt-8 w-full bg-black text-white py-2 rounded hover:bg-gray-800 transition font-bold"
+          >
+            Çıkış Yap
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- EKRAN 2: LOGIN FORM ---
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div className="bg-white p-8 rounded shadow-md w-full max-w-md border border-gray-300">
+        <h2 className="text-2xl font-bold mb-6 text-center text-black">
+          {isLoginView ? "Giriş Yap" : "Kayıt Ol"}
+        </h2>
+
+        {error && (
+          <div className="bg-red-100 text-red-900 border border-red-400 p-2 rounded mb-4 text-center font-bold">
+            {error}
+          </div>
+        )}
+
+        <form
+          onSubmit={isLoginView ? handleLogin : handleRegister}
+          className="space-y-4"
+        >
+          {/* Sadece Kayıt Olurken Görünür */}
+          {!isLoginView && (
+            <>
+              <div>
+                <label className="block text-black text-sm font-bold mb-1">
+                  Kullanıcı Adı
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Kullanıcı adınızı girin"
+                  className="w-full border border-gray-400 p-2 rounded text-black placeholder-black focus:outline-none focus:border-black"
+                  required
+                />
+              </div>
+
+              {/* Rol Seçimi */}
+              <div>
+                <label className="block text-black text-sm font-bold mb-1">
+                  Rol Seç (Test İçin)
+                </label>
+                <select
+                  value={roleInput}
+                  onChange={(e) => setRoleInput(e.target.value)}
+                  className="w-full border border-gray-400 p-2 rounded bg-white text-black focus:outline-none focus:border-black"
+                >
+                  <option value="user">User (Standart)</option>
+                  <option value="admin">Admin (Yönetici)</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="block text-black text-sm font-bold mb-1">
+              E-posta
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ornek@email.com"
+              className="w-full border border-gray-400 p-2 rounded text-black placeholder-black focus:outline-none focus:border-black"
+              required
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          <div>
+            <label className="block text-black text-sm font-bold mb-1">
+              Şifre
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="******"
+              className="w-full border border-gray-400 p-2 rounded text-black placeholder-black focus:outline-none focus:border-black"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white p-2 rounded hover:bg-gray-800 transition font-bold"
           >
-            Documentation
-          </a>
-        </div>
-      </main>
+            {loading ? "..." : isLoginView ? "Giriş Yap" : "Kayıt Ol"}
+          </button>
+        </form>
+
+        <p
+          className="mt-4 text-center text-black font-semibold cursor-pointer hover:underline"
+          onClick={() => setIsLoginView(!isLoginView)}
+        >
+          {isLoginView ? "Hesap Oluştur" : "Giriş Yap"}
+        </p>
+      </div>
     </div>
   );
 }
