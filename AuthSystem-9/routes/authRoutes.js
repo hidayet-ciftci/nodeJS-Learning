@@ -4,6 +4,8 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const Jwt = require("jsonwebtoken");
 
+//AuthRoutes -> kimlik işlemleri için -login , -register
+
 //list users
 router.get("/users", async (req, res, next) => {
   try {

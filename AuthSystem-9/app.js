@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const app = express();
@@ -22,6 +23,7 @@ const errorHandler = require("./middleware/errorHandler");
 const logger = require("./middleware/logger");
 
 app.use(logger);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/users", userRouter);
 app.use("/api/auth", authRouter);
 app.use(errorHandler);

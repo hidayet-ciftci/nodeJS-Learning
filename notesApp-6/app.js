@@ -9,9 +9,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // MongoDB bağlantısı
 mongoose
-  .connect(
-    "mongodb+srv://hidayetcft_db_user:lG1YUAvEr9WoJUk8@cluster0.vzsnmvu.mongodb.net/"
-  )
+  .connect("")
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
